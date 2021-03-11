@@ -1,10 +1,11 @@
+#include <cstddef>
 #include "math.hpp"
 #include "gasunit.hpp"
 #include "tests.hpp"
 
 namespace Phys {
+		
 
-	// TODO: Fix physics, fix math
 	bool const ResolveCollision(GasUnit& a, GasUnit& b) noexcept {
 		using namespace Math;
 
@@ -21,23 +22,55 @@ namespace Phys {
 			return false;
 		}
 
-		// collision resolution
-		
 		Vec4 dv = a.vel() - b.vel();
-		
-		float A = dv.sqlen();
-		float B = Dot(dr,dv) + Dot(a.pos(), a.vel()) +
-			Dot(b.pos(), b.vel());
-		float C = dr.sqlen() - D2;
 
-		float dt = (B + Sqrt(B * B - 4 * A * C)) / (2 * A);
+		// At^2 -2Bt + C = 0
+		float A = dv.sqlen();
+		float Bhalf = Dot(dv, dr);
+		float C = d2 - D2;
+		float Dby4 = Bhalf * Bhalf - A * C;
+		float D = Sqrt(Dby4);
+
+		float dt = NAN;
+		if(Bhalf > 0.f) {
+			Bhalf = -Bhalf;
+		}
+		dt = (Bhalf + Sqrt(Dby4)) / A;
+
+		/*
+		int mask = _MM_GET_EXCEPTION_MASK();
+		if(mask & _MM_EXCEPT_INVALID) std::cout << "finvalid" << std::endl;
+		if(mask & _MM_EXCEPT_DIV_ZERO) std::cout << "fdivzero" << std::endl;
+		if(mask & _MM_EXCEPT_DENORM) std::cout << "fdenorm" << std::endl;
+		if(mask & _MM_EXCEPT_OVERFLOW) std::cout << "foverflow" << std::endl;
+		if(mask & _MM_EXCEPT_UNDERFLOW) std::cout << "funderflow" << std::endl;
+		if(mask & _MM_EXCEPT_INEXACT) std::cout << "finexact" << std::endl;
+
+		*/
+
+		/*
+		std::cout << "dr = " << dr << std::endl;
+		std::cout << "dv = " << dv << std::endl;
+		std::cout << "A = " << A << std::endl;
+		std::cout << "Bh = " <<Bhalf << std::endl;
+		std::cout << "C = " << C << std::endl;
+		std::cout << "Dby4 = " << Dby4 << std::endl;
+		std::cout << "dt = " << dt << std::endl << std::endl;
+		*/
+
+		/*
+		if(dt > 1.f / 10)
+			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+			*/
 
 		a.pos() -= a.vel() * dt;
 		b.pos() -= b.vel() * dt;
 
-		// can be optimized, because dr squared len is known
-		a.vel().reflu(dr);
-		b.vel().reflu(dr);
+		Vec4 new_dr = a.pos() - b.pos();
+		Vec4 new_dv = new_dr * Dot(dv, new_dr) / new_dr.sqlen();
+
+		a.vel() -= new_dv;
+		b.vel() += new_dv;
 
 		a.pos() += a.vel() * dt;
 		b.pos() += b.vel() * dt;

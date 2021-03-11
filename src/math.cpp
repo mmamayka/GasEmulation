@@ -29,6 +29,11 @@ namespace Math {
 		}
 	}
 
+	std::ostream& operator<< (std::ostream& stream, Vec4 const& v) {
+		return stream << '(' << v.x << ',' << v.y << ',' << v.z << ',' << v.w <<
+			"; |.| = " << v.len();
+	}
+
 	Mat4::Mat4() noexcept {
 		__m128 r1reg = _mm_setr_ps(1.f, 0.f, 0.f, 0.f);
 
