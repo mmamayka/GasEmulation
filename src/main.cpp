@@ -1,63 +1,83 @@
 #include "tests.hpp"
 #include "gasunit.hpp"
+#include "collision.hpp"
+#include "maxwell.hpp"
+
+#include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/Window/Keyboard.hpp>
+#include <vector>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 
-#include <type_traits>
+#define W 250
+#define H 250
 
-template<typename Type>
-class LinearAllocator {
-public:
-	LinearAllocator(size_t max_elements);
-	~LinearAllocator();
+#define GW 100
+#define GH 100
 
-private:
-	Type* memory_;
+void DrawGrid(sf::RenderTarget& target, sf::Vector2u size) {
+	size_t width = size.x / GW;
+	size_t height = size.y / GH;
+
+	sf::VertexArray lines(sf::PrimitiveType::Lines, (GW + GH) * 2);
+
+	size_t npoint = 0;
+	for(size_t i = 0; i < GW; ++i, npoint += 2) {
+		lines[npoint].position.x = i * width;
+		lines[npoint].position.y = 0;
+		lines[npoint].color = sf::Color::Black;
+
+		lines[npoint + 1].position.x = i * width;
+		lines[npoint + 1].position.y = size.y;
+		lines[npoint + 1].color = sf::Color::Black;
+	}
+
+	for(size_t i = 0; i < GH; ++i, npoint += 2) {
+		lines[npoint].position.y = i * height;
+		lines[npoint].position.x = 0;
+		lines[npoint].color = sf::Color::Black;
+
+		lines[npoint + 1].position.y = i * height;
+		lines[npoint + 1].position.x = size.x;
+		lines[npoint + 1].color = sf::Color::Black;
+	}
+
+	target.draw(lines);
+}
+
+struct Cell {
+	std::vector<Phys::GasUnit*> units;
 };
 
-void DrawVec(sf::RenderTarget& target, Math::Vec4 where, Math::Vec4 vec, 
-	sf::Color c = sf::Color::Magenta) 
-{
-	sf::VertexArray a(sf::PrimitiveType::Lines, 2);
-	a[0].position.x = where.x;
-	a[0].position.y = where.y;
-	a[0].color = c;
+void DrawCells(sf::RenderTarget& target, std::vector<Cell> const& cells) {
+	float cell_width = 800.f / GW;
+	float cell_height = 600.f / GH;
 
-	a[1].position.x = where.x + vec.x;
-	a[1].position.y = where.y + vec.y;
-	a[1].color = c;
+	sf::RectangleShape shape;
+	shape.setSize(sf::Vector2f(cell_width, cell_height));
 
-	target.draw(a);
+	float V0 = cell_width * cell_height;
+
+	for(size_t i = 0; i < GW; ++i)
+		for(size_t j = 0; j < GH; ++j) {
+			float V = cells[i * GH + j].units.size() * Math::PI * Phys::R * Phys::R;
+
+			sf::Color c((V / V0) * 255, 0, 0);
+
+			shape.setFillColor(c);
+			shape.setPosition(i * cell_width, j * cell_height);
+			target.draw(shape);
+		}
 }
 
-sf::Color linear(float v) {
-	sf::Color r;
-
-	r.r = (unsigned char)(255 * v);
-	r.g = (unsigned char)(255 * (1 - v));
-	r.b = 0;
-	return r;
-}
-
-Math::Vec4 rand_vel(float len) {
-	float phi = (float)(rand() % 1000 - 500) / 500 * Math::PI;
-	return Math::Vec4(cosf(phi), sinf(phi), 0.f) * len;
-}
-
-#define MV 40
-
-#define W 165
-#define H 20
-
-float GetPart(float mk, float T, float v, float step) {
-	float A = mk / (2 * T);
-	float sqrtA = Math::Sqrt(A);
-
-	float vend = v + step;
-
-	return Math::Sqrt(Math::PI) / 2 * (erff(vend * sqrtA) - erff(v * sqrtA)) +
-		2 * sqrtA * (exp(-v * v * A) * v - exp(-vend * vend * A) * vend);
+void CollideCells(Cell& a, Cell& b) {
+	for(auto ua : a.units)
+		for(auto ub : b.units) {
+			if(ua == ub)
+				continue;
+			ResolveCollision(*ua, *ub);
+		}
 }
 
 int main() 
@@ -65,30 +85,17 @@ int main()
 	using namespace Phys;
 	using namespace Math;
 
-	float step = 1e-2f;
-	size_t N = 1000000;
-	size_t total = 0;
-	for(float v = 0.f; v < 3.f; v += step) {
-		float count = (float)(GetPart(1e-4f, 397.f, v, step) * (float)N);
-		total += count;
-
-		std::cout << "vel = " << v << " n = " << count  << std::endl;
-	}
-	std::cout << "total = " << total << std::endl;
-
 	sf::RenderWindow window(sf::VideoMode(800, 600), "Gas");
 	window.setFramerateLimit(60);
 
-	Container gas_container(1e-4f, 1e-4f, 1e-4f, 1, 273.17);
+	// GasUnit* g = new GasUnit[W * H];
+	std::vector<GasUnit> g(W * H);
 
-	GasUnit* g = (GasUnit*)malloc(sizeof(GasUnit) * W * H);
-	for(size_t i = 0; i < W; ++i) {
-		for(size_t j = 0; j < H; ++j) {
-			new (g + i * H + j) GasUnit(Vec4((float)(i * D * 1.2f) - 400.f + D, (float)(j * D * 1.2f) - 300.f + D, 0.f),
-				rand_vel((float)(rand() % MV)));
-		}
-	}
+	// Cell* cells = new Cell[GW * GH];
+	std::vector<Cell> cells(GW * GH);
 
+	Phys::SetupPositionDistribution(g.data(), W * H, 200.f, 200.f, Phys::R);
+	float maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 100.f, 1e-2f);
 
 	sf::CircleShape gshape;
 	sf::RectangleShape cshape;
@@ -103,9 +110,22 @@ int main()
 
 	ContainerCollider collider(400.f, 300.f, 200.f);
 
+	window.setFramerateLimit(120);
+
+	float dt = D / maxv;
+
+	float cell_width = 800.f / GW;
+	float cell_height = 600.f / GH;
+
+
+	// XXXX
+	// XXXX
+	// XXOX
+	// XXXX
+	// XXXX
+	
+	float real_time = 0.f;
 	sf::Clock clock;
-
-
 	while(window.isOpen()) {
 		sf::Event event;
 		while(window.pollEvent(event)) {
@@ -114,47 +134,152 @@ int main()
 			}
 		}
 
-		float dt = clock.getElapsedTime().asSeconds();
-		// std::cout << "FPS = " << 1.f / dt << std::endl;
-		// std::cout << dt << std::endl;
+		float time = clock.getElapsedTime().asSeconds();
 		clock.restart();
 
-		for(size_t i = 0; i < W * H; ++i)
+		real_time += dt;
+
+		std::cout << "FPS = " << 1.f / time << std::endl;
+		std::cout << "TIME = " << real_time << std::endl;
+
+		for(size_t i = 0; i < W * H; ++i) {
 			g[i].move(dt);
-
-		bool found = true;
-		while(found) {
-			found = false;
-
-			for(size_t i = 0; i < W * H; ++i) {
-				for(size_t j = 0; j < W * H; ++j) {
-					if(i == j)
-						continue;
-
-					ResolveCollision(g[i], g[j]);
-				}
-			}
+			MATH_VEC4_ASSERT(g[i].pos());
+			MATH_VEC4_ASSERT(g[i].vel());
 		}
+
 		for(size_t i = 0; i < W * H; ++i)
 			ResolveCollision(g[i], collider);
 
-		window.clear();
+		for(size_t i = 0; i < GW * GH; ++i) {
+			cells[i].units.clear();
+		}
 
+		for(size_t i = 0; i < W * H; ++i) {
+			float fidx = ((g[i].pos().x + 400.f) / cell_width);
+			float fidy = ((g[i].pos().y + 300.f) / cell_height);
+
+			if(fidx < 0.f) fidx = 0.f;
+			if(fidy < 0.f) fidy = 0.f;
+
+			size_t idx = fidx;
+			size_t idy = fidy;
+
+			if(idx >= GW) idx = GW - 1;
+			if(idy >= GH) idy = GH - 1;
+
+			cells.at(idx * GH + idy).units.push_back(g.data() + i);
+
+		}
+
+		for(size_t cx = 0; cx < GW; ++cx)
+			for(size_t cy = 0; cy < GH; ++cy) {
+				Cell& main = cells.at(cx * GH + cy);
+
+
+				for(size_t cxx = (cx == 0 ? 0 : cx - 1); cxx <= (cx == GW - 1 ? cx : cx + 1); cxx++) {
+					for(size_t cyy = (cy == 0 ? 0 : cy - 1); cyy <= (cy == GH - 1 ? cy : cy + 1); cyy++) {
+						// std::cout << cx << ' ' << cy << ", " << cxx << ' ' << cyy << std::endl;
+						CollideCells(main, cells.at(cxx * GH + cyy));
+					}
+				}
+				
+			
+			}
+#if 0
+		for(size_t cx = 0; cx < GW - 1; ++cx)
+			for(size_t cy = 1; cy < GH - 1; ++cy) {
+				// Cell& main = cells[(cx + 0) * GH + (cy + 0)];
+				// Cell& c1 = cells[(cx + 1) * GH + (cy - 1)];
+				// Cell& c2 = cells[(cx + 1) * GH + (cy + 1)];
+				// Cell& c3 = cells[(cx + 1) * GH + (cy + 0)];
+				// Cell& c4 = cells[(cx + 0) * GH + (cy + 1)];
+				Cell& main = cells.at((cx + 0) * GH + (cy + 0));
+				Cell& c1 = cells.at((cx + 1) * GH + (cy - 1));
+				Cell& c2 = cells.at((cx + 1) * GH + (cy + 1));
+				Cell& c3 = cells.at((cx + 1) * GH + (cy + 0));
+				Cell& c4 = cells.at((cx + 0) * GH + (cy + 1));
+
+				CollideCells(main, main);
+				CollideCells(main, c1);
+				CollideCells(main, c2);
+				CollideCells(main, c3);
+				CollideCells(main, c4);
+			}
+		// cy = 0
+		for(size_t cx = 0; cx < GW - 1; ++cx) {
+			Cell& main = cells[(cx + 0) * GH + (0)];
+			Cell& c1 = cells[(cx + 1) * GH + (0)];
+			Cell& c2 = cells[(cx + 1) * GH + (1)];
+			Cell& c3 = cells[(cx + 0) * GH + (1)];
+
+			CollideCells(main, main);
+			CollideCells(main, c1);
+			CollideCells(main, c2);
+			CollideCells(main, c3);
+		}
+
+		// cy = GH - 1
+		for(size_t cx = 0; cx < GW - 1; ++cx) {
+				Cell& main = cells[(cx + 0) * GH + (GH - 1)];
+				Cell& c1 = cells[(cx + 1) * GH + (GH - 2)];
+				Cell& c2 = cells[(cx + 0) * GH + (GH - 1)];
+
+				CollideCells(main, main);
+				CollideCells(main, c1);
+				CollideCells(main, c2);
+		}
+
+		// cx = GW - 1
+		for(size_t cy = 0; cy < GH - 1; ++cy) {
+				Cell& main = cells[(GW - 1) * GH + (cy + 0)];
+				Cell& c1 = cells[(GW - 1) * GH + (cy + 1)];
+
+				CollideCells(main, main);
+				CollideCells(main, c1);
+		}
+
+		CollideCells(cells[GW * GH - 1], cells[GW * GH - 1]);
+#endif
+		/*k
+		for(size_t i = 0; i < W * H; ++i) {
+			for(size_t j = 0; j < W * H; ++j) {
+				if(i == j)
+					continue;
+
+				ResolveCollision(g[i], g[j]);
+			}
+		}
+		*/
+
+		// while(!sf::Keyboard::isKeyPressed(sf::Keyboard::Space));
+		// while(sf::Keyboard::isKeyPressed(sf::Keyboard::Space));
+
+
+		window.clear();
+		
 		window.draw(cshape);
 
+		DrawCells(window, cells);
+
+		// DrawGrid(window, sf::Vector2u(800, 600));
+
+		/*
 		float E = 0.f;
 		for(size_t i = 0; i < W * H; ++i) {
 			E += g[i].vel().sqlen();
 
-			gshape.setFillColor(linear(g[i].vel().len() / MV));
+			gshape.setFillColor(sf::Color::Red);
 			gshape.setPosition(g[i].pos().x + 400, g[i].pos().y + 300);
 			window.draw(gshape);
 		}
-		// std::cout << E << std::endl;
-		//
+		*/
+
+
 		window.display();
 
 	}
 
-	free(g);
+	// delete[] g;
+	// delete[] cells;
 }

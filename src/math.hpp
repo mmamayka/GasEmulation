@@ -41,7 +41,7 @@ namespace Math {
 		constexpr int SSE_ShufMask = SSE_ShufMaskS<x, y, z, w>::Value;
 	}
 
-	constexpr float EPS = 1e-6;
+	constexpr float EPS = 1e-5;
 	constexpr float PI = 3.1415926535;
 
 	// TODO: check fabsf realization, fix it

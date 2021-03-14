@@ -1,123 +1,75 @@
-#include <cstddef>
-#include "math.hpp"
 #include "gasunit.hpp"
-#include "tests.hpp"
+#include "math.hpp"
+#include "maxwell.hpp"
+
+#include <vector>
+#include <algorithm>
+#include <random>
 
 namespace Phys {
-		
+	void SetupPositionDistribution(GasUnit units[], size_t count,
+		float width, float height, float depth)
+	{
+		size_t xcount = (size_t)(2 * width / D);
+		size_t ycount = (size_t)(2 * height / D);
+		size_t zcount = (size_t)(2 * depth / D);
 
-	bool const ResolveCollision(GasUnit& a, GasUnit& b) noexcept {
-		using namespace Math;
-
-		Vec4 dr = a.pos() - b.pos();
-
-		// test for Axis Aligned Bound AABB collision
-		if(!InfNormLessThan(Abs(dr), D)) { [[likely]]
-			return false;
+		if(xcount * ycount * zcount < count) {
+			throw std::invalid_argument
+				("impossible to distribute without intersections");
 		}
 
-		// test for circle collision
-		float d2 = dr.sqlen();
-		if(d2 >= D2) { [[likely]]
-			return false;
-		}
+		std::vector<Math::Vec4> positions;
 
-		Vec4 dv = a.vel() - b.vel();
+		for(float x = -width + R; x <= width - R; x += D)
+			for(float y = -height + R; y <= height - R; y += D)
+				for(float z = -depth + R; z <= depth - R; z += D)
+					positions.push_back(Math::Vec4(x, y, z));
 
-		// At^2 -2Bt + C = 0
-		float A = dv.sqlen();
-		float Bhalf = Dot(dv, dr);
-		float C = d2 - D2;
-		float Dby4 = Bhalf * Bhalf - A * C;
-		float D = Sqrt(Dby4);
+		std::random_device r;
+		std::mt19937_64 g(r());
+		std::shuffle(positions.begin(), positions.end(), g);
 
-		float dt = NAN;
-		if(Bhalf > 0.f) {
-			Bhalf = -Bhalf;
-		}
-		dt = (Bhalf + Sqrt(Dby4)) / A;
-
-		/*
-		int mask = _MM_GET_EXCEPTION_MASK();
-		if(mask & _MM_EXCEPT_INVALID) std::cout << "finvalid" << std::endl;
-		if(mask & _MM_EXCEPT_DIV_ZERO) std::cout << "fdivzero" << std::endl;
-		if(mask & _MM_EXCEPT_DENORM) std::cout << "fdenorm" << std::endl;
-		if(mask & _MM_EXCEPT_OVERFLOW) std::cout << "foverflow" << std::endl;
-		if(mask & _MM_EXCEPT_UNDERFLOW) std::cout << "funderflow" << std::endl;
-		if(mask & _MM_EXCEPT_INEXACT) std::cout << "finexact" << std::endl;
-
-		*/
-
-		/*
-		std::cout << "dr = " << dr << std::endl;
-		std::cout << "dv = " << dv << std::endl;
-		std::cout << "A = " << A << std::endl;
-		std::cout << "Bh = " <<Bhalf << std::endl;
-		std::cout << "C = " << C << std::endl;
-		std::cout << "Dby4 = " << Dby4 << std::endl;
-		std::cout << "dt = " << dt << std::endl << std::endl;
-		*/
-
-		/*
-		if(dt > 1.f / 10)
-			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-			*/
-
-		a.pos() -= a.vel() * dt;
-		b.pos() -= b.vel() * dt;
-
-		Vec4 new_dr = a.pos() - b.pos();
-		Vec4 new_dv = new_dr * Dot(dv, new_dr) / new_dr.sqlen();
-
-		a.vel() -= new_dv;
-		b.vel() += new_dv;
-
-		a.pos() += a.vel() * dt;
-		b.pos() += b.vel() * dt;
-
-		return true;
+		for(size_t i = 0; i < count; ++i)
+			units[i].pos() = positions[i];
 	}
 
-	bool const ResolveCollision(GasUnit& a, ContainerCollider const& b) noexcept {
-		using namespace Math;
+	float const SetupVelocityDistribution(GasUnit units[], size_t count,
+		float massbyk, float temperature, float step_error)
+	{
+		std::random_device r;
+		std::mt19937 g(r());
 
-		Vec4 Rvec(R);
+		MaxwellDistributionManager dmgr(massbyk, temperature, step_error);
 
-		int cmask = (CMPGTMask(a.pos() + Rvec, b.size()) | 
-			(CMPLTMask(a.pos() - Rvec, -b.size()) << 4));
+		size_t total = 0;
+		float rest = 0.f;
+		float maxv = 0.f;
+		while(dmgr.needIntegrationStep()) {
+			float fpart = count *  dmgr.integrationStep();
+			size_t part = (size_t)fpart;
+			rest += fpart - (float)part;
 
-		if(!cmask) { [[likely]]
-			return false;
-		}
+			maxv = dmgr.getIntegrationPosition();
 
-		// rewrite using SSE and masking
-		if(cmask & (1 << 0)) {
-			a.vel().x = -a.vel().x;
-			a.pos().x -= 2 * (a.pos().x + R - b.size().x);
-		}
-		if(cmask & (1 << 1)) {
-			a.vel().y = -a.vel().y;
-			a.pos().y -= 2 * (a.pos().y + R - b.size().y);
-		}
-		if(cmask & (1 << 2)) {
-			a.vel().z = -a.vel().z;
-			a.pos().z -= 2 * (a.pos().z + R - b.size().z);
-		}
+			if(rest >= 1.f) {
+				size_t extpart = (size_t)rest;
+				rest = rest - (float)extpart;
 
-		if(cmask & (1 << 4)) {
-			a.vel().x = -a.vel().x;
-			a.pos().x += 2 * (-a.pos().x - b.size().x + R);
-		}
-		if(cmask & (1 << 5)) {
-			a.vel().y = -a.vel().y;
-			a.pos().y += 2 * (-a.pos().y - b.size().y + R);
-		}
-		if(cmask & (1 << 6)) {
-			a.vel().z = -a.vel().z;
-			a.pos().z += 2 * (-a.pos().z - b.size().z + R);
+				part += extpart;
+			}
+
+			size_t limit = total + part;
+			for(; total < limit; ++total) {
+				Math::Vec4 dir((float)g() - (float)std::mt19937::max() / 2.f);
+				dir.z = 0.f;
+
+				dir.norm();
+
+				units[total].vel() = dir * maxv;
+			}
 		}
 
-		// std::cout << "detected" << std::endl;
-		return true;
+		return maxv;
 	}
 }

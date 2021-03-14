@@ -2,7 +2,7 @@
 LDFLAGS := -lm -lsfml-graphics -lsfml-window -lsfml-system
 
 # compiler flags
-CFLAGS  := -O2 -march='skylake' -msse3 -msse2 -msse -DNDEBUG -mfma -g \
+CFLAGS  := -O2 -march='skylake' -msse3 -msse2 -msse -mfma -g \
 	 -std=c++20
 
 # used compiler
