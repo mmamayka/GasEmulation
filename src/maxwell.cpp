@@ -2,13 +2,14 @@
 #include <iomanip>
 #include "maxwell.hpp"
 #include "math.hpp"
+#include <iostream>
 
 namespace Phys {
 
 	MaxwellDistributionManager::MaxwellDistributionManager(
-		float massbyk, float temperature, float err) noexcept :
+		double massbyk, double temperature, double err) noexcept :
 
-		A_(NAN), sqrtA_(NAN), err_(err), pos_(0.f), step_(NAN)
+		A_(NAN), sqrtA_(NAN), step_(NAN), err_(err), pos_(0.0)
 	{
 		A_ = massbyk / (2 * temperature);
 		sqrtA_ = Math::Sqrt(A_);
@@ -18,56 +19,56 @@ namespace Phys {
 		step_ = mostProbablePosition();
 	}
 
-	float const MaxwellDistributionManager::pointProbability(float at) const noexcept
+	double MaxwellDistributionManager::pointProbability(double at) const noexcept
 	{
-		float vsq = at * at;
-		return 4 * Math::PI * powf(A_ / (2 * Math::PI), 1.5f) * 
-			vsq * expf(-A_ * vsq);
+		double vsq = at * at;
+		return 4 * Math::PId * pow(A_ / (2 * Math::PId), 1.5f) * 
+			vsq * exp(-A_ * vsq);
 	}
 
-	float const MaxwellDistributionManager::rangeProbability(float start, 
-		float end) const noexcept
+	double MaxwellDistributionManager::rangeProbability(double start, 
+		double end) const noexcept
 	{
-		return erff(end * sqrtA_) - erff(start * sqrtA_) +
-			2 * sqrtA_ / Math::Sqrt(Math::PI) * (expf(-start * start * A_) * start - 
-			expf(-end * end * A_) * end);
+		return erf(end * sqrtA_) - erf(start * sqrtA_) +
+			2 * sqrtA_ / Math::Sqrt(Math::PId) * (exp(-start * start * A_) * start - 
+			exp(-end * end * A_) * end);
 	}
 
-	float const MaxwellDistributionManager::mostProbablePosition() const noexcept
+	double MaxwellDistributionManager::mostProbablePosition() const noexcept
 	{
-		return 1.f / sqrtA_;
+		return 1.0 / sqrtA_;
 	}
 
-	float const MaxwellDistributionManager::meanSquarePosition() const noexcept
+	double MaxwellDistributionManager::meanSquarePosition() const noexcept
 	{
-		return 1.f / sqrtA_ * sqrtf(3.f / 2.f);
+		return 1.0 / sqrtA_ * sqrtf(3.0 / 2.0);
 	}
 
 	void MaxwellDistributionManager::resetIntegration() noexcept {
-		pos_ = 0.f;
+		pos_ = 0.0;
 		step_ = mostProbablePosition();
 	}
 
-	float const MaxwellDistributionManager::integrationStep() noexcept {
-		float max_ystep = 1.f / sqrtA_ * err_;
+	double MaxwellDistributionManager::integrationStep() noexcept {
+		double max_ystep = 1.0 / sqrtA_ * err_;
 
-		float lposy = pointProbability(pos_);
-		float rposy = pointProbability(pos_ + step_);
+		double lposy = pointProbability(pos_);
+		double rposy = pointProbability(pos_ + step_);
 
 		while(Math::Abs(rposy - lposy) < max_ystep && (pos_ + step_) < rlimit_) {
-			step_ *= 2.f;
+			step_ *= 2.0;
 			rposy = pointProbability(pos_ + step_);
 
 		}
 
 		if(pos_ + step_ < rlimit_) {
-			float lpos = pos_;
-			float rpos = pos_ + step_;
+			double lpos = pos_;
+			double rpos = pos_ + step_;
 
-			while(fabsf(lpos - rpos) > Math::EPS) {
-				float mpos = (lpos + rpos) / 2.f;
+			while(fabs(lpos - rpos) > Math::EPSd) {
+				double mpos = (lpos + rpos) / 2.0;
 
-				float mposy = pointProbability(mpos);
+				double mposy = pointProbability(mpos);
 				if(Math::Abs(mposy - lposy) < max_ystep) {
 					lpos = mpos;
 					lposy = mposy;
@@ -84,18 +85,18 @@ namespace Phys {
 			step_ = rlimit_ - pos_;
 		}
 
-		float old_pos = pos_;
+		double old_pos = pos_;
 		pos_ = pos_ + step_;
 
 		return rangeProbability(old_pos, pos_);
 	}
 
-	bool const MaxwellDistributionManager::needIntegrationStep() const noexcept 
+	bool MaxwellDistributionManager::needIntegrationStep() const noexcept 
 	{
 		return !Math::Equal(pos_, rlimit_);
 	}
 
-	float const MaxwellDistributionManager::getIntegrationPosition() const noexcept 
+	double MaxwellDistributionManager::getIntegrationPosition() const noexcept 
 	{
 		return pos_;
 	}
@@ -103,15 +104,15 @@ namespace Phys {
 
 	void MaxwellDistributionManager::setupRightLimit() noexcept 
 	{
-		float llimit = rlimit_ = mostProbablePosition();
+		double llimit = rlimit_ = mostProbablePosition();
 
-		while(!Math::Equal(rangeProbability(0.f, rlimit_), 1.f))
-			rlimit_ *= 2.f;
+		while(!Math::Equal(rangeProbability(0.0, rlimit_), 1.0))
+			rlimit_ *= 2.0;
 
 		while(!Math::Equal(llimit, rlimit_)) {
-			float mlimit = (llimit + rlimit_) / 2.f;
+			double mlimit = (llimit + rlimit_) / 2.0;
 
-			if(Math::Equal(rangeProbability(0.f, mlimit), 1.f)) {
+			if(Math::Equal(rangeProbability(0.0, mlimit), 1.0)) {
 				rlimit_ = mlimit;
 			}
 			else {

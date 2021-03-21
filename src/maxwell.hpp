@@ -4,30 +4,31 @@
 namespace Phys {
 	class MaxwellDistributionManager final {
 	public:
-		MaxwellDistributionManager(float massbyk, float temperature, float err) noexcept;
+		MaxwellDistributionManager(double massbyk, double temperature, double err) 
+			noexcept;
 
-		float const pointProbability(float at) const noexcept;
-		float const rangeProbability(float start, float end) const noexcept;
+		double pointProbability(double at) const noexcept;
+		double rangeProbability(double start, double end) const noexcept;
 
-		float const mostProbablePosition() const noexcept;
-		float const meanSquarePosition() const noexcept;
+		double mostProbablePosition() const noexcept;
+		double meanSquarePosition() const noexcept;
 
 		void resetIntegration() noexcept;
-		float const integrationStep() noexcept;
-		bool const needIntegrationStep() const noexcept;
-		float const getIntegrationPosition() const noexcept;
+		double integrationStep() noexcept;
+		bool needIntegrationStep() const noexcept;
+		double getIntegrationPosition() const noexcept;
 
 	private:
 		void setupRightLimit() noexcept;
 
-		float A_;
-		float sqrtA_;
+		double A_;
+		double sqrtA_;
 
-		float step_;
-		float rlimit_;
-		float err_;
+		double step_;
+		double rlimit_;
+		double err_;
 
-		float pos_;
+		double pos_;
 	};
 }
 

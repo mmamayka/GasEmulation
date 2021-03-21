@@ -1,57 +1,54 @@
 #ifndef COLLISION_H
 #define COLLISION_H
 
+#include <vector>
+
 #include "math.hpp"
 #include "gasunit.hpp"
 
 namespace Phys {
-	constexpr size_t CELLSTORAGE_CAPACITY = 16;
-
 	class ContainerCollider {
 	public:
-		ContainerCollider(float width, float height, float depth) noexcept :
+		ContainerCollider(double width, double height, double depth) noexcept :
 			size_(width, height, depth) {}
 
-		Math::Vec4 const size() const noexcept { return size_; }
-		Math::Vec4& size() noexcept { return size_; }
+		Math::Vec4d const size() const noexcept { return size_; }
+		Math::Vec4d& size() noexcept { return size_; }
 
 	private:
-		Math::Vec4 size_;
+		Math::Vec4d size_;
 	};
 
-	/*
-	struct CellStorage {
-		GasUnit* units_[CELLSTORAGE_CAPACITY];
-		CellStorage* next_;
-	};
-
-	class CellStoragePool {
+	class CollisionCellManager {
 	public:
+		CollisionCellManager(double width, double height, double depth, double r);
+		CollisionCellManager(CollisionCellManager&) = delete;
+		CollisionCellManager operator= (CollisionCellManager&) = delete;
+		~CollisionCellManager();
+
+		void registerUnits(std::vector<GasUnit>& units);
+		void resolveCollisions() noexcept;
+		size_t getUnitsCountAt(size_t cell_index);
 
 	private:
+		void collideCells(std::vector<GasUnit*>& c1, std::vector<GasUnit*>& c2);
+
+		size_t ncellsx_;
+		size_t ncellsy_;
+		size_t ncellsz_;
+		size_t cells_count_;
+
+		double width_;
+		double height_;
+		double depth_;
+		double cell_size_;
+
+		std::vector<GasUnit*>* cells_;
+		ContainerCollider container_;
 	};
 
-	class Cell {
-	public:
-
-	private:
-		CellStorage main_storage_;
-		CellStorage* last_storage_;
-		size_t nfilled_cells_;
-	};
-
-	class CellManager {
-	public:
-
-	private:
-		size_t width_;
-		size_t height_;
-		size_t depth_;
-	};
-	*/
-
-	bool const ResolveCollision(GasUnit& a, GasUnit& b) noexcept;
-	bool const ResolveCollision(GasUnit& a, ContainerCollider const& b) noexcept;
+	bool ResolveCollision(GasUnit& a, GasUnit& b) noexcept;
+	bool ResolveCollision(GasUnit& a, ContainerCollider const& b) noexcept;
 }
 
 #endif
