@@ -14,8 +14,8 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 
-#define W 200
-#define H 200
+#define W 300
+#define H 300
 
 #define GW 200
 #define GH 150
@@ -54,21 +54,26 @@ struct Cell {
 	std::vector<Phys::GasUnit*> units;
 };
 
-void DrawCells(sf::RenderTarget& target, std::vector<Cell> const& cells) {
-	float cell_width = 800.f / GW;
-	float cell_height = 600.f / GH;
+void DrawCells(sf::RenderTarget& target, Phys::CellManager const& manager) {
+	float cell_width = manager.getCellSize();
+	float cell_height = manager.getCellSize();
+
+	size_t ncellsx = manager.getNumCellsX();
+	size_t ncellsy = manager.getNumCellsY();
 
 	sf::RectangleShape shape;
 	shape.setSize(sf::Vector2f(cell_width, cell_height));
 
 	float V0 = cell_width * cell_height;
 
-	for(size_t i = 0; i < GW; ++i)
-		for(size_t j = 0; j < GH; ++j) {
-			float V = cells[i * GH + j].units.size() * Math::PId * Phys::R * Phys::R;
+	for(size_t i = 0; i < ncellsx; ++i)
+		for(size_t j = 0; j < ncellsy; ++j) {
+			float V = manager.getCountAt(i, j, 0) * Math::PId * Phys::R * Phys::R;
 			float part = V / V0;
 			if(part > 1.f)
 				part = 1.f;
+
+			//part *= 50;
 
 			sf::Color c(part * 255.0, 0, 0);
 
@@ -95,20 +100,9 @@ int main()
 	Phys::SetupPositionDistribution(g.data(), W * H, 200.f, 200.f, D);
 	double maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 100.f, 1e-5);
 
-	CellManager cell_manager(400.0, 300.0, R, D, g.data(), W * H);
+	CellManager cell_manager(400.0, 300.0, R * 8, D * 8, g.data(), W * H);
 
 	g.clear();
-
-	sf::CircleShape gshape;
-	sf::RectangleShape cshape;
-	cshape.setSize(sf::Vector2f(800.f, 600.f));
-	cshape.setPosition(400.f, 300.f);
-	cshape.setOrigin(400.f, 300.f);
-	cshape.setFillColor(sf::Color::White);
-
-	gshape.setRadius(R);
-	gshape.setOrigin(R, R);
-	gshape.setFillColor(sf::Color::Green);
 
 	window.setFramerateLimit(120);
 
@@ -140,24 +134,9 @@ int main()
 
 		window.clear();
 		
-		// DrawCells(window, cells);
-
-		// DrawGrid(window, sf::Vector2u(800, 600));
-
-		float E = 0.f;
-		for(size_t i = 0; i < W * H; ++i) {
-			E += g[i].vel().sqlen();
-
-			gshape.setFillColor(sf::Color::Red);
-			gshape.setPosition(g[i].pos().x + 400, g[i].pos().y + 300);
-			window.draw(gshape);
-		}
-
+		DrawCells(window, cell_manager);
 
 		window.display();
 
 	}
-
-	// delete[] g;
-	// delete[] cells;
 }

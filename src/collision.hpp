@@ -100,8 +100,14 @@ namespace Phys {
 		size_t getNumCellsX() const noexcept { return ncellsx_; }
 		size_t getNumCellsY() const noexcept { return ncellsy_; }
 		size_t getNumCellsZ() const noexcept { return ncellsz_; }
-		size_t getCountAt(size_t x, size_t y, size_t z)
+		size_t getCountAt(size_t x, size_t y, size_t z) const noexcept
 		{ return cells_[x * (ncellsz_ * ncellsy_) + y * ncellsz_ + z].count(); }
+
+		double getWidth() const noexcept { return width_; }
+		double getHeight() const noexcept { return height_; }
+		double getDepth() const noexcept { return depth_; }
+
+		double getCellSize() const noexcept { return cell_size_; }
 
 	private:
 		size_t getCellIndex(Math::Vec4d pos) const noexcept;

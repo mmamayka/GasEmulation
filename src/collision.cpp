@@ -157,9 +157,17 @@ namespace Phys {
 	size_t CellManager::getCellIndex(Math::Vec4d pos) const noexcept {
 		Math::Vec4d rind = (pos + Math::Vec4d(width_, height_, depth_)) / cell_size_;
 
+		for(size_t i = 0; i < 4; ++i) {
+			if(rind.data[i] < 0.0) rind.data[i] = 0.0;
+		}
+
 		size_t x = rind.x;
 		size_t y = rind.y;
 		size_t z = rind.z;
+
+		if(x >= ncellsx_) x = ncellsx_ - 1;
+		if(y >= ncellsy_) y = ncellsy_ - 1;
+		if(z >= ncellsz_) z = ncellsz_ - 1;
 
 		return x * (ncellsy_ * ncellsz_) + y * ncellsz_ + z;
 	}
