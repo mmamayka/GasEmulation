@@ -1,9 +1,11 @@
 # linker flags
-LDFLAGS := -lm -lsfml-graphics -lsfml-window -lsfml-system -pg
+LDFLAGS := -lm -lsfml-graphics -lsfml-window -lsfml-system
 
 # compiler flags
-CFLAGS  := -O2 -march='skylake' -msse3 -msse2 -msse -mfma -pg \
-	 -std=c++20 -fno-stack-protector
+CFLAGS  := -O2 -march='skylake' -msse3 -msse2 -msse -mfma  \
+	 -std=c++20 -fno-stack-protector -msse4.1 -msse4.2 -mssse3 \
+	 -mavx -mavx2 -mno-vzeroupper
+	 #-mno-vzeroupper
 
 # used compiler
 CC      := g++

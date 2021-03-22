@@ -4,7 +4,7 @@
 #include "math.hpp"
 
 namespace Phys {
-	constexpr double R = 0.95;
+	constexpr double R = 0.45;
 	constexpr double D = R * 2.0;
 	constexpr double D2 = D * D;
 	constexpr double M = 1.0;
@@ -16,9 +16,6 @@ namespace Phys {
 
 		GasUnit(Math::Vec4d const& init_pos, Math::Vec4d const& init_vel) noexcept :
 			pos_(init_pos), vel_(init_vel) {}
-
-		GasUnit(GasUnit const&) = delete;
-		GasUnit operator= (GasUnit const&) = delete;
 
 		inline Math::Vec4d const pos() const noexcept { return pos_; }
 		inline Math::Vec4d& pos() noexcept { return pos_; }

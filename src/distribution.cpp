@@ -18,6 +18,8 @@ namespace Phys {
 				for(double z = -depth + R; z <= depth - R; z += D + Math::EPSd*1)
 					positions.push_back(Math::Vec4d(x, y, z));
 
+		std::cout << positions.size() << std::endl;
+
 		if(positions.size() < count)
 			throw std::runtime_error("impossible to distribute gives count of GasUnits");
 

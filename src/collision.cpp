@@ -1,9 +1,89 @@
-#include "collision.hpp"
+#include <cstdlib>
 #include <iostream>
+#include <cassert>
+#include <algorithm>
+#include "collision.hpp"
+#include "debug.hpp"
 
 namespace Phys {
-	CollisionCellManager::CollisionCellManager(double width, double height, 
-		double depth, double r) :
+	Cell::Cell(size_t initial_capacity) :
+		units_(new GasUnit[initial_capacity]),
+		count_(0),
+		capacity_(initial_capacity)
+	{}
+	
+	Cell::~Cell() noexcept {
+		delete[] units_;
+	}
+
+	void Cell::push(GasUnit unit) {
+		if(count_ == capacity_) {
+			size_t new_capacity = capacity_ * 2;
+			GasUnit* new_units = new GasUnit[new_capacity];
+			std::copy_n(units_, new_capacity, new_units);
+
+			delete[] units_;
+
+			capacity_ = new_capacity;
+			units_ = new_units;
+		}
+
+		units_[count_++] = unit;
+	}
+
+	void Cell::fit() noexcept {
+		GasUnit* invalid = units_;
+		GasUnit* end = units_ + count_;
+
+		while(invalid < end && std::isfinite(invalid->pos().x))
+			++invalid;
+
+		GasUnit* valid = invalid + 1;
+
+		while(valid < end) {
+			if(std::isfinite(valid->pos().x)) {
+				*invalid = *valid;
+				++invalid;
+			}
+
+			++valid;
+		}
+
+		count_ = invalid - units_;
+	}
+
+	void Cell::update(double dt) noexcept {
+		for(auto& unit : *this) {
+			assert(std::isfinite(unit.pos().x));
+			assert(std::isfinite(unit.pos().y));
+			assert(std::isfinite(unit.pos().z));
+			assert(std::isfinite(unit.pos().w));
+
+			unit.move(dt);
+		}
+	}
+
+	void Cell::collideWith(ContainerCollider collider) noexcept {
+		for(auto& unit : *this)
+			ResolveCollision(unit, collider);
+	}
+
+	void Cell::collideWith(Cell& other_cell) noexcept {
+		if(&other_cell != this) {
+			for(auto& this_unit : *this)
+				for(auto& other_unit : other_cell)
+					ResolveCollision(this_unit, other_unit);
+		}
+		else {
+			GasUnit* this_end = units_ + count_;
+			for(GasUnit* unit1 = units_; unit1 < this_end; ++unit1)
+				for(GasUnit* unit2 = unit1 + 1; unit2 < this_end; ++unit2)
+					ResolveCollision(*unit1, *unit2);
+		}
+	}
+
+	CellManager::CellManager(double width, double height, 
+		double depth, double r, GasUnit units[], size_t count) :
 
 		ncellsx_((size_t)(2.0 * width / r)),
 		ncellsy_((size_t)(2.0 * height / r)),
@@ -15,39 +95,39 @@ namespace Phys {
 		depth_(depth),
 		cell_size_(r),
 
-		cells_(new std::vector<GasUnit*>[cells_count_]),
+		cells_(cells_count_),
 		container_(width, height, depth)
-	{}
-
-	CollisionCellManager::~CollisionCellManager() {
-		delete[] cells_;
-	}
-
-	void CollisionCellManager::registerUnits(std::vector<GasUnit>& units) {
-		for(size_t i = 0; i < cells_count_; ++i)
-			cells_[i].clear();
-
-		for(auto& unit : units) {
-			ResolveCollision(unit, container_);
-
-			double rposx = (unit.pos().x + width_) / cell_size_;
-			double rposy = (unit.pos().y + height_) / cell_size_;
-			double rposz = (unit.pos().z + depth_) / cell_size_;
-
-			size_t posx = (size_t)rposx;
-			size_t posy = (size_t)rposy;
-			size_t posz = (size_t)rposz;
-
-			size_t index = posx * (ncellsz_ * ncellsy_) + posy * ncellsz_ + posz;
-			cells_[index].push_back(&unit);
+	{
+		for(GasUnit* unit = units; unit < units + count; ++unit) {
+			cells_[this->getCellIndex(unit->pos())].push(*unit);
 		}
+
 	}
 
-	void CollisionCellManager::resolveCollisions() noexcept {
+	void CellManager::update(double dt) {
+		for(auto& cell : cells_) {
+			cell.update(dt);
+			cell.collideWith(container_);
+		}
+
+		for(size_t ncell = 0; ncell < cells_count_; ++ncell) {
+			for(CellIterator itr = cells_[ncell].begin(); itr != cells_[ncell].end();
+				++itr)
+			{
+				size_t new_index = getCellIndex(itr->pos());
+				if(new_index != ncell) {
+					cells_[new_index].push(*itr);
+					itr.erase();
+				}
+			}
+
+			cells_[ncell].fit();
+		}
+
 		for(size_t cx = 0; cx < ncellsx_; ++cx) {
 			for(size_t cy = 0; cy < ncellsy_; ++cy) {
 				for(size_t cz = 0; cz < ncellsz_; ++cz) {
-					std::vector<GasUnit*>& main = 
+					Cell& main =
 						cells_[cx * (ncellsy_ * ncellsz_) + cy * ncellsz_ + cz];
 
 					size_t xstart = cx == 0 ? 0 : cx - 1;
@@ -61,49 +141,33 @@ namespace Phys {
 					for(size_t cxx = xstart; cxx <= xend; ++cxx) {
 						for(size_t cyy = ystart; cyy <= yend; ++cyy) {
 							for(size_t czz = zstart; czz <= zend; ++czz) {
-								std::vector<GasUnit*>& cell = 
+								Cell& cell =
 									cells_[cxx * (ncellsy_ * ncellsz_) +
 									cyy * ncellsz_ + czz];
 
-								collideCells(main, cell);
+								main.collideWith(cell);
 							}
 						}
 					}
-
-
-
 				}
 			}
 		}
-
-
-
 	}
 
-	void CollisionCellManager::collideCells(std::vector<GasUnit*>& c1, 
-		std::vector<GasUnit*>& c2)
-	{
-		for(auto u1 : c1)
-			for(auto u2 : c2) {
-				if(u1 != u2) {
-					ResolveCollision(*u1, *u2);
-				}
-			}
+	size_t CellManager::getCellIndex(Math::Vec4d pos) const noexcept {
+		Math::Vec4d rind = (pos + Math::Vec4d(width_, height_, depth_)) / cell_size_;
+
+		size_t x = rind.x;
+		size_t y = rind.y;
+		size_t z = rind.z;
+
+		return x * (ncellsy_ * ncellsz_) + y * ncellsz_ + z;
 	}
 
 	bool ResolveCollision(GasUnit& a, GasUnit& b) noexcept {
 		using namespace Math;
 
 		Vec4d dr = a.pos() - b.pos();
-
-		// test for Axis Aligned Bound AABB collision
-		/*
-		if(!InfNormLessThan(Abs(dr), D)) { [[likely]]
-			return false;
-		}
-		*/
-
-		// test for circle collision
 		double d2 = dr.sqlen();
 
 		if(d2 >= D2) { [[likely]]
@@ -112,17 +176,17 @@ namespace Phys {
 
 		Vec4d dv = a.vel() - b.vel();
 
-		double dt = NAN;
 
 		// At^2 -2Bt + C = 0
 		double A = dv.sqlen();
-		double Bhalf = Dot(dv, dr);
-		double C = d2 - D2;
 
 		if(AboutZero(A)) { [[unlikely]]
 			return false;
 		}
 		else {
+			double Bhalf = Dot(dv, dr);
+			double C = d2 - D2;
+			double dt = NAN;
 			double Dby4 = Bhalf * Bhalf - A * C;
 			double D = Sqrt(Dby4);
 
@@ -131,17 +195,17 @@ namespace Phys {
 			}
 			dt = (Bhalf + D) / A;
 
-		a.pos() -= a.vel() * dt;
-		b.pos() -= b.vel() * dt;
+			a.pos() -= a.vel() * dt;
+			b.pos() -= b.vel() * dt;
 
-		Vec4d new_dr = a.pos() - b.pos();
-		Vec4d new_dv = new_dr * Dot(dv, new_dr) / new_dr.sqlen();
+			Vec4d new_dr = a.pos() - b.pos();
+			Vec4d new_dv = new_dr * Dot(dv, new_dr) / new_dr.sqlen();
 
-		a.vel() -= new_dv;
-		b.vel() += new_dv;
+			a.vel() -= new_dv;
+			b.vel() += new_dv;
 
-		a.pos() += a.vel() * dt;
-		b.pos() += b.vel() * dt;
+			a.pos() += a.vel() * dt;
+			b.pos() += b.vel() * dt;
 
 		}
 		return true;

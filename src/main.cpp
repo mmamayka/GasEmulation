@@ -78,16 +78,6 @@ void DrawCells(sf::RenderTarget& target, std::vector<Cell> const& cells) {
 		}
 }
 
-void CollideCells(Cell& a, Cell& b) {
-	for(auto ua : a.units)
-		for(auto ub : b.units) {
-			if(ua == ub)
-				continue;
-			ResolveCollision(*ua, *ub);
-
-		}
-}
-
 int main() 
 {
 	using namespace Phys;
@@ -102,11 +92,12 @@ int main()
 	std::vector<GasUnit> g(W * H);
 
 	// Cell* cells = new Cell[GW * GH];
-	std::vector<Cell> cells(GW * GH);
-
-	Phys::SetupPositionDistribution(g.data(), W * H, 200.f, 200.f, Phys::R);
+	Phys::SetupPositionDistribution(g.data(), W * H, 200.f, 200.f, D);
 	double maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 100.f, 1e-5);
 
+	CellManager cell_manager(400.0, 300.0, R, D, g.data(), W * H);
+
+	g.clear();
 
 	sf::CircleShape gshape;
 	sf::RectangleShape cshape;
@@ -119,16 +110,10 @@ int main()
 	gshape.setOrigin(R, R);
 	gshape.setFillColor(sf::Color::Green);
 
-	CollisionCellManager collision_manager(400.0, 300.0, D, D);
-
 	window.setFramerateLimit(120);
 
 	double dt = D / maxv;
 	std::cout << dt << std::endl;
-
-	double cell_width = 800.f / GW;
-	double cell_height = 600.f / GH;
-
 
 	float real_time = 0.f;
 	sf::Clock clock;
@@ -148,16 +133,7 @@ int main()
 		std::cout << "FPS = " << 1.f / time << std::endl;
 		std::cout << "TIME = " << real_time << std::endl;
 
-		for(size_t i = 0; i < W * H; ++i) {
-			for(size_t j = 0; j < 4; ++j)
-				ASSERT(std::isfinite(g[i].pos().data[j]));
-
-
-			g[i].move(dt);
-		}
-
-		collision_manager.registerUnits(g);
-		collision_manager.resolveCollisions();
+		cell_manager.update(dt);
 
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
 			window.close();

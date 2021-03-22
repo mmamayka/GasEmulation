@@ -36,6 +36,7 @@ namespace Math {
 
 			inline DataType sqlen() const noexcept;
 			inline DataType len() const noexcept;
+			inline DataType isqlen() const noexcept;
 
 			inline void norm() noexcept;
 			// inline Vec4<DataType> normed() const noexcept;
@@ -354,10 +355,19 @@ namespace Math {
 	}
 
 	inline double Dot(Vec4d x, Vec4d y) noexcept {
+		/*
 		__m256d sqvec = _mm256_mul_pd(x.vector, y.vector);
 		__m256d h1sumvec = _mm256_hadd_pd(sqvec, sqvec);
 		__m128d h2sumvec = _mm256_extractf128_pd(h1sumvec, 1);
 		__m128d dotvec = _mm_add_sd(_mm256_castpd256_pd128(h1sumvec), h2sumvec);
+		*/
+
+		__m256d xy = _mm256_mul_pd(x.vector, y.vector);
+		__m128d xylow = _mm256_castpd256_pd128(xy);
+		__m128d xyhigh = _mm256_extractf128_pd(xy, 1);
+		__m128d sum1 = _mm_add_pd(xylow, xyhigh);
+		__m128d swapped = _mm_unpackhi_pd(sum1, sum1);
+		__m128d dotvec = _mm_add_sd(sum1, swapped);
 		
 		double result = NAN;
 		_mm_store_sd(&result, dotvec);
