@@ -14,45 +14,8 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 
-#define W 300
-#define H 300
-
-#define GW 200
-#define GH 150
-
-void DrawGrid(sf::RenderTarget& target, sf::Vector2u size) {
-	size_t width = size.x / GW;
-	size_t height = size.y / GH;
-
-	sf::VertexArray lines(sf::PrimitiveType::Lines, (GW + GH) * 2);
-
-	size_t npoint = 0;
-	for(size_t i = 0; i < GW; ++i, npoint += 2) {
-		lines[npoint].position.x = i * width;
-		lines[npoint].position.y = 0;
-		lines[npoint].color = sf::Color::Black;
-
-		lines[npoint + 1].position.x = i * width;
-		lines[npoint + 1].position.y = size.y;
-		lines[npoint + 1].color = sf::Color::Black;
-	}
-
-	for(size_t i = 0; i < GH; ++i, npoint += 2) {
-		lines[npoint].position.y = i * height;
-		lines[npoint].position.x = 0;
-		lines[npoint].color = sf::Color::Black;
-
-		lines[npoint + 1].position.y = i * height;
-		lines[npoint + 1].position.x = size.x;
-		lines[npoint + 1].color = sf::Color::Black;
-	}
-
-	target.draw(lines);
-}
-
-struct Cell {
-	std::vector<Phys::GasUnit*> units;
-};
+#define W 400
+#define H 400
 
 void DrawCells(sf::RenderTarget& target, Phys::CellManager const& manager) {
 	float cell_width = manager.getCellSize();
@@ -97,10 +60,10 @@ int main()
 	std::vector<GasUnit> g(W * H);
 
 	// Cell* cells = new Cell[GW * GH];
-	Phys::SetupPositionDistribution(g.data(), W * H, 200.f, 200.f, D);
-	double maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 100.f, 1e-5);
+	Phys::SetupPositionDistribution(g.data(), W * H, 300.f, 200.f, D);
+	double maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 1.f, 1e-5);
 
-	CellManager cell_manager(400.0, 300.0, R * 8, D * 8, g.data(), W * H);
+	CellManager cell_manager(400.0, 300.0, R * 5, D * 5, g.data(), W * H);
 
 	g.clear();
 

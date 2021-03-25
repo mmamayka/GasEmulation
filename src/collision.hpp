@@ -22,29 +22,27 @@ namespace Phys {
 
 	class CellIterator {
 	public:
-		GasUnit& operator* () noexcept { return *pos_; }
-		GasUnit const& operator* () const noexcept { return *pos_; }
+		Math::Vec4d& pos() noexcept { return *pos_; };
+		Math::Vec4d const& pos() const noexcept { return *pos_; };
 
-		GasUnit* operator->() noexcept { return pos_; }
-		GasUnit const* operator->() const noexcept { return pos_; }
+		Math::Vec4d& vel() noexcept { return *vel_; };
+		Math::Vec4d const& vel() const noexcept { return *vel_; };
 
-		CellIterator operator++() noexcept 
-		{ 
-			return CellIterator(++pos_);
-		}
+		CellIterator operator++() noexcept { return CellIterator(++pos_, ++vel_); }
 
-		void erase() noexcept { pos_->pos().x = NAN; }
-
-	protected:
-		friend class Cell;
-		CellIterator(GasUnit* pos) noexcept : pos_(pos) {}
+		void erase() noexcept { pos_->x = NAN; }
 
 	private:
-		GasUnit* pos_;
+		friend class Cell;
+		CellIterator(Math::Vec4d* pos, Math::Vec4d* vel) noexcept : 
+			pos_(pos), vel_(vel) {}
+
+		Math::Vec4d* pos_;
+		Math::Vec4d* vel_;
 	};
 
-	inline bool operator!= (CellIterator a, CellIterator b) noexcept
-	{ return &*a != &*b; }
+	inline bool operator!= (CellIterator const& a, CellIterator const& b)
+	{ return &a.pos() != &b.pos(); }
 
 	class Cell {
 	public:
@@ -54,30 +52,26 @@ namespace Phys {
 		Cell(Cell const&) = delete;
 		Cell operator= (Cell const&) = delete;
 
-		void push(GasUnit unit);
+		void push(GasUnit unit) { this->push(unit.pos(), unit.vel()); }
+		void push(Math::Vec4d pos, Math::Vec4d vel);
 		void fit() noexcept;
 
 		void update(double dt) noexcept;
 		void collideWith(ContainerCollider collider) noexcept;
 		void collideWith(Cell& other_cell) noexcept;
 
-		bool ok() {
-			for(size_t i = 0; i < count_; ++i)
-				if(std::isnan(units_[i].pos().x))
-					return false;
-			return true;
-		}
-
 		size_t count() const noexcept { return count_; }
 
 		CellIterator begin() noexcept 
-		{ return CellIterator(units_); }
+		{ return CellIterator(units_pos_, units_vel_); }
 
 		CellIterator end() noexcept 
-		{ return CellIterator(units_ + count_); }
+		{ return CellIterator(units_pos_ + count_, NULL); }
 
 	private:
-		GasUnit* units_;
+		Math::Vec4d* units_pos_;
+		Math::Vec4d* units_vel_;
+
 		size_t count_;
 		size_t capacity_;
 	};
@@ -92,11 +86,6 @@ namespace Phys {
 
 		void update(double dt);
 
-		void asrt() {
-			for(size_t i = 0; i < cells_count_; ++i)
-				ASSERT(cells_[i].ok());
-		}
-
 		size_t getNumCellsX() const noexcept { return ncellsx_; }
 		size_t getNumCellsY() const noexcept { return ncellsy_; }
 		size_t getNumCellsZ() const noexcept { return ncellsz_; }
@@ -110,6 +99,10 @@ namespace Phys {
 		double getCellSize() const noexcept { return cell_size_; }
 
 	private:
+		void move(double dt) noexcept;
+		void updateCells();
+		void intersect() noexcept;
+
 		size_t getCellIndex(Math::Vec4d pos) const noexcept;
 
 		size_t ncellsx_;
@@ -122,12 +115,24 @@ namespace Phys {
 		double depth_;
 		double cell_size_;
 
+		size_t move_count_;
+
 		std::vector<Cell> cells_;
 		ContainerCollider container_;
 	};
 
-	bool ResolveCollision(GasUnit& a, GasUnit& b) noexcept;
-	bool ResolveCollision(GasUnit& a, ContainerCollider const& b) noexcept;
+	// bool ResolveCollision(GasUnit& a, GasUnit& b) noexcept;
+	bool HasCollision(Math::Vec4d apos, Math::Vec4d bpos, double& d2, Math::Vec4d& dr)
+		noexcept;
+
+	__attribute__((noinline))
+	void ResolveCollision(Math::Vec4d& apos, Math::Vec4d& avel, Math::Vec4d& bpos, 
+		Math::Vec4d& bvel, double& d2, Math::Vec4d& dr) noexcept;
+
+	//__attribute__((noinline))
+	// bool ResolveCollision(GasUnit& a, ContainerCollider const& b) noexcept;
+	bool ResolveCollision(Math::Vec4d& apos, Math::Vec4d& avel, 
+			ContainerCollider const& b) noexcept;
 }
 
 #endif

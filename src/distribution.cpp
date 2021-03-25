@@ -62,7 +62,8 @@ namespace Phys {
 				Math::Vec4d dir(
 						(double)g() / (double)std::mt19937::max() - 0.5,
 						(double)g() / (double)std::mt19937::max() - 0.5,
-						0.0);
+						/*(double)g() / (double)std::mt19937::max() - 0.5);*/
+					0.0);
 
 				dir.norm();
 
