@@ -1,11 +1,8 @@
 #include <iostream>
 
 #include "tests.hpp"
-#include "gasunit.hpp"
-#include "collision.hpp"
 #include "distribution.hpp"
-#include "maxwell.hpp"
-#include "debug.hpp"
+#include "cellmanager.hpp"
 
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -16,6 +13,14 @@
 
 #define W 400
 #define H 400
+
+namespace Phys {
+	class Gas {
+	public:
+
+	private:
+	};
+}
 
 void DrawCells(sf::RenderTarget& target, Phys::CellManager const& manager) {
 	float cell_width = manager.getCellSize();
@@ -61,7 +66,7 @@ int main()
 
 	// Cell* cells = new Cell[GW * GH];
 	Phys::SetupPositionDistribution(g.data(), W * H, 300.f, 200.f, D);
-	double maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 1.f, 1e-5);
+	double maxv = Phys::SetupVelocityDistribution(g.data(), W * H, 1.f, 100000.f, 1e-5);
 
 	CellManager cell_manager(400.0, 300.0, R * 5, D * 5, g.data(), W * H);
 
