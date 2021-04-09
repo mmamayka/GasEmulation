@@ -4,7 +4,7 @@
 #include "math.hpp"
 
 namespace Phys {
-	constexpr double R = 0.49;
+	constexpr double R = 0.5;
 	constexpr double D = R * 2.0;
 	constexpr double D2 = D * D;
 	constexpr double M = 1.0;

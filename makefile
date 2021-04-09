@@ -4,7 +4,7 @@ LDFLAGS := -lm -lsfml-graphics -lsfml-window -lsfml-system
 # compiler flags
 CFLAGS  := -O3 -march='skylake' -msse3 -msse2 -msse -mfma  \
 	 -std=c++20 -fno-stack-protector -msse4.1 -msse4.2 -mssse3 \
-	 -mavx -mavx2 -mno-vzeroupper
+	 -mavx -mavx2 -mno-vzeroupper -mpreferred-stack-boundary=6
 
 # used compiler
 CC      := g++

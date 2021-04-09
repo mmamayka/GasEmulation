@@ -15,11 +15,44 @@
 #define H 400
 
 namespace Phys {
-	class Gas {
+	class ColliderUnit;
+
+	class ContainerPortal {
+	public:
+
+
+	private:
+		ColliderUnit* unit1_;
+		ColliderUnit* unit2_;
+		Math::PolygonD polygon_;
+	};
+
+	class ContainerPart {
+	public:
+		ContainerPart(Math::PolygonD const* polygons, size_t count);
+		ContainerPart(std::initializer_list<Math::PolygonD> const& polygons);
+
+	private:
+		Math::PolygonD* polygons_;
+		size_t polygon_count_;
+
+		ContainerPortal* portals_;
+		size_t portal_count_;
+
+		CellManager cell_manager_;
+	};
+
+	class Container {
 	public:
 
 	private:
+		ContainerPart* parts_;
+		size_t count_;
 	};
+}
+
+void DrawPolygon(sf::RenderTarget& target, Math::PolygonD const& polygon) {
+
 }
 
 void DrawCells(sf::RenderTarget& target, Phys::CellManager const& manager) {

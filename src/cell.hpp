@@ -27,22 +27,32 @@ namespace Phys {
 		Math::Vec4d* vel_;
 	};
 
+	enum class CellType {
+		USUAL = 0,
+		BOUNDARY,
+		INACESSIBLE,
+		PORTAL
+	};
+
 	inline bool operator!= (CellIterator const& a, CellIterator const& b)
 	{ return &a.pos() != &b.pos(); }
 
 	class Cell {
 	public:
-		Cell(size_t initial_capacity = 4);
+		Cell(size_t initial_capacity = 128);
 		~Cell() noexcept;
 
 		Cell(Cell const&) = delete;
 		Cell operator= (Cell const&) = delete;
 
+		void setType(CellType type) noexcept { type_ = type; }
+		CellType getType() const noexcept { return type_; }
+
 		void push(GasUnit unit) { this->push(unit.pos(), unit.vel()); }
 		void push(Math::Vec4d pos, Math::Vec4d vel);
 		void fit() noexcept;
 
-		void update(double dt) noexcept;
+		void update(double dt, ContainerCollider collider) noexcept;
 		void collideWith(ContainerCollider collider) noexcept;
 		void collideWith(Cell& other_cell) noexcept;
 
@@ -60,6 +70,7 @@ namespace Phys {
 
 		size_t count_;
 		size_t capacity_;
+		CellType type_;
 	};
 
 }

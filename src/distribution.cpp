@@ -11,6 +11,7 @@ namespace Phys {
 	void SetupPositionDistribution(GasUnit units[], size_t count,
 		double width, double height, double depth)
 	{		
+		/*
 		std::vector<Math::Vec4d> positions;
 
 		for(double x = -width + R; x <= width - R; x += D + Math::EPSd*1)
@@ -29,6 +30,22 @@ namespace Phys {
 
 		for(size_t i = 0; i < count; ++i)
 			units[i].pos() = positions[i];
+		*/
+
+		std::random_device random_device;
+		std::mt19937_64 random_generator(random_device());
+
+		std::uniform_real_distribution x_distribution(-width + R, width - R);
+		std::uniform_real_distribution y_distribution(-height + R, height - R);
+		std::uniform_real_distribution z_distribution(-depth + R, depth - R);
+
+		for(size_t i = 0; i < count; ++i) {
+			units[i].pos() = Math::Vec4d(
+				x_distribution(random_generator),
+				y_distribution(random_generator),
+				z_distribution(random_generator)
+			);
+		}
 	}
 
 	double SetupVelocityDistribution(GasUnit units[], size_t count,
@@ -38,6 +55,8 @@ namespace Phys {
 		std::mt19937 g(r());
 
 		MaxwellDistributionManager dmgr(massbyk, temperature, step_error);
+
+		std::cout << "MPV = " << dmgr.mostProbablePosition() << std::endl;
 
 		size_t total = 0;
 		double rest = 0.0;

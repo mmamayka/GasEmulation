@@ -4,8 +4,7 @@
 #include "math.hpp"
 
 namespace Phys {
-
-	class ContainerCollider {
+		class ContainerCollider {
 		public:
 			ContainerCollider(double width, double height, double depth) noexcept :
 				size_(width, height, depth) {}

@@ -38,8 +38,8 @@ namespace Phys {
 
 		Cell* end = cells_.data() + cells_.size();
 		for(Cell* cell = cells_.data(); cell < end; ++cell) {
-			cell->update(dt);
-			cell->collideWith(container_);
+			cell->update(dt, container_);
+			// cell->collideWith(container_);
 		}
 	}
 	void CellManager::updateCells() {
